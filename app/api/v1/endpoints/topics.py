@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.api import deps
-from app.models import Topic, Session as DBSession, User, Agent
+from app.models import Topic, Session as DBSession, User, Agent, ChatMessage
 from app.schemas.topic import TopicCreate, TopicUpdate, TopicResponse
+from app.schemas.session import SessionResponse
+from app.services.ai import AIService
 import uuid
 
 router = APIRouter()
@@ -127,11 +129,119 @@ async def delete_topic(
     db: Annotated[Session, Depends(deps.get_db)],
     topic_id: str
 ):
-    """Delete topic and its subtopics (admin only)."""
+    """Delete topic and all related data (admin only)."""
+    try:
+        # Start a nested transaction
+        with db.begin_nested():
+            # Get the topic and all its subtopics
+            topic = db.query(Topic).filter(Topic.id == topic_id).first()
+            if not topic:
+                raise HTTPException(status_code=404, detail="Topic not found")
+            
+            # Get all subtopic IDs recursively
+            def get_subtopic_ids(topic_id: str, ids=None) -> set:
+                if ids is None:
+                    ids = set()
+                ids.add(topic_id)
+                subtopics = db.query(Topic).filter(Topic.parent_id == topic_id).all()
+                for subtopic in subtopics:
+                    get_subtopic_ids(subtopic.id, ids)
+                return ids
+            
+            topic_ids = get_subtopic_ids(topic_id)
+            
+            # Get all session IDs for these topics
+            session_ids = [
+                id[0] for id in 
+                db.query(DBSession.id)
+                .filter(DBSession.topic_id.in_(topic_ids))
+                .all()
+            ]
+            
+            if not session_ids:
+                session_ids = []  # Ensure it's an empty list for the IN clause
+            
+            # Delete all chat messages for these sessions
+            deleted_messages = db.query(ChatMessage)\
+                .filter(ChatMessage.session_id.in_(session_ids))\
+                .delete(synchronize_session=False)
+            
+            # Delete all sessions
+            deleted_sessions = db.query(DBSession)\
+                .filter(DBSession.topic_id.in_(topic_ids))\
+                .delete(synchronize_session=False)
+            
+            # Delete all topics
+            deleted_topics = db.query(Topic)\
+                .filter(Topic.id.in_(topic_ids))\
+                .delete(synchronize_session=False)
+            
+            result = {
+                "message": "Topic deleted",
+                "deleted_topics": deleted_topics,
+                "deleted_sessions": deleted_sessions,
+                "deleted_messages": deleted_messages
+            }
+            
+        # If we get here, the nested transaction was successful
+        # Commit the outer transaction
+        db.commit()
+        return result
+        
+    except Exception as e:
+        # Rollback in case of any error
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete topic: {str(e)}"
+        )
+
+@router.get("/{topic_id}/session", response_model=SessionResponse)
+async def get_or_create_session(
+    *,
+    topic_id: str,
+    current_user: Annotated[User, Depends(deps.get_current_user)],
+    db: Annotated[Session, Depends(deps.get_db)]
+) -> DBSession:
+    """Get latest session for topic or create new one."""
+    # First check if topic exists
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
     
-    db.delete(topic)  # This will cascade delete subtopics
+    # Check for existing session
+    existing_session = db.query(DBSession)\
+        .filter(
+            DBSession.user_id == current_user.id,
+            DBSession.topic_id == topic_id
+        )\
+        .order_by(DBSession.created_at.desc())\
+        .first()
+    
+    if existing_session:
+        # Add topic title for response
+        setattr(existing_session, 'topic_title', topic.title)
+        return existing_session
+    
+    # Create new session
+    new_session = DBSession(
+        id=str(uuid.uuid4()),
+        user_id=current_user.id,
+        topic_id=topic_id,
+        agent_id=topic.agent_id,
+        completion_rate=0.0,
+        duration=0,
+        interaction_data={}
+    )
+    
+    db.add(new_session)
     db.commit()
-    return {"message": "Topic deleted"} 
+    db.refresh(new_session)
+    
+    # Initialize AI chat for new session
+    ai_service = AIService(db)
+    await ai_service.initialize_session(new_session)
+    
+    # Add topic title for response
+    setattr(new_session, 'topic_title', topic.title)
+    return new_session 

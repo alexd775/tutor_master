@@ -41,7 +41,7 @@ class AIService:
         session: Session,
         user_message: str,
         context_window: int = 10
-    ) -> ChatMessage:
+    ) -> List[ChatMessage]:
         """Process a user message and return the agent's response."""
         # Create user message
         user_msg = ChatMessage(
@@ -87,10 +87,10 @@ class AIService:
         self.db.add(assistant_msg)
         
         # Update session metrics
-        self._update_session_metrics(session, user_message, response)
+        # self._update_session_metrics(session, user_message, response)
         
         self.db.commit()
-        return assistant_msg
+        return [user_msg, assistant_msg]
     
     def _update_session_metrics(
         self,

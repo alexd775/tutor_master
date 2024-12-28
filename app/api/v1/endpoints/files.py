@@ -1,12 +1,12 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from app.api import deps
 from app.core.storage import get_storage
 from app.models import File as DBFile, User
-from app.schemas.file import FileResponse, FileUpdate
+from app.schemas.file import FileResponse, FileUpdate, FileListResponse
 from app.core.config import settings
 import uuid
 import os
@@ -133,26 +133,26 @@ async def update_file(
     db.refresh(db_file)
     return db_file
 
-@router.get("", response_model=List[FileResponse])
+@router.get("", response_model=FileListResponse)
 async def list_files(
     current_user: Annotated[User, Depends(deps.get_current_user)],
     db: Annotated[Session, Depends(deps.get_db)],
-    topic_id: str,
-    search: Optional[str] = None,
     skip: int = 0,
-    limit: int = Query(default=20, le=100)
-) -> List[DBFile]:
-    """List files with optional filtering."""
-    query = db.query(DBFile).filter(DBFile.topic_id == topic_id)
+    limit: int = 100,
+    topic_id: str = None,
+) -> FileListResponse:
+    """List files with optional topic filter."""
+    query = db.query(DBFile)
+    if topic_id:
+        query = query.filter(DBFile.topic_id == topic_id)
     
-    if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                DBFile.title.ilike(search_term),
-                DBFile.description.ilike(search_term),
-                DBFile.filename.ilike(search_term)
-            )
-        )
+    # Get total count
+    total = query.count()
     
-    return query.offset(skip).limit(limit).all() 
+    # Get paginated results
+    files = query.offset(skip).limit(limit).all()
+    
+    return FileListResponse(
+        items=[FileResponse.model_validate(f) for f in files],
+        total=total
+    ) 

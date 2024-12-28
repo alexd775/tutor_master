@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
@@ -27,3 +27,8 @@ class FileResponse(FileBase):
     topic_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True) 
+
+class FileListResponse(BaseModel):
+    """Schema for file list responses."""
+    items: List[FileResponse]
+    total: int

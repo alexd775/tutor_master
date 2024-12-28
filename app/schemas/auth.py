@@ -27,3 +27,9 @@ class UserResponse(BaseModel):
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True) 
+
+class TokenVerify(BaseModel):
+    token: str
+
+class TokenRefresh(BaseModel):
+    refresh_token: str 

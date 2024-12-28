@@ -10,10 +10,13 @@ from app.core.security import (
     verify_password,
     get_password_hash,
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    ALGORITHM,
 )
 from app.models.user import User, UserRole
-from app.schemas.auth import Token, UserCreate, UserResponse
+from app.schemas.auth import Token, UserCreate, UserResponse, TokenRefresh, TokenVerify
 import uuid
+from jose import jwt, JWTError
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -42,13 +45,47 @@ async def login(
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    db: Annotated[Session, Depends(deps.get_db)],
-    current_user: Annotated[User, Depends(deps.get_current_user)]
+    token_data: TokenRefresh,
+    db: Annotated[Session, Depends(deps.get_db)]
 ) -> Token:
-    """Refresh access token."""
-    access_token = create_access_token(current_user.id)
-    refresh_token = create_refresh_token(current_user.id)
-    return Token(access_token=access_token, refresh_token=refresh_token)
+    """
+    Refresh access token using a valid refresh token.
+    """
+    try:
+        payload = jwt.decode(
+            token_data.refresh_token, settings.SECRET_KEY, algorithms=[ALGORITHM]
+        )
+        token_type = payload.get("type")
+        if token_type != "refresh":
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid token type"
+            )
+        
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid refresh token"
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid refresh token"
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found or inactive"
+        )
+
+    return Token(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+        token_type="bearer"
+    )
 
 @router.post("/register", response_model=UserResponse)
 async def register(
@@ -76,9 +113,46 @@ async def register(
     db.refresh(user)
     return user
 
-@router.post("/verify", response_model=UserResponse)
+@router.post("/verify")
 async def verify_token(
-    current_user: Annotated[User, Depends(deps.get_current_user)]
-) -> User:
-    """Verify access token and return user info."""
-    return current_user 
+    token_data: TokenVerify,
+    db: Annotated[Session, Depends(deps.get_db)]
+) -> dict:
+    """Verify token (access or refresh) and return validity status."""
+    try:
+        payload = jwt.decode(
+            token_data.token, settings.SECRET_KEY, algorithms=[ALGORITHM]
+        )
+        token_type = payload.get("type")
+        if token_type not in ["access", "refresh"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid token type"
+            )
+        
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+            
+        # Check if user still exists and is active
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found or inactive"
+            )
+        
+        return {
+            "valid": True,
+            "token_type": token_type,
+            "user_id": user_id
+        }
+        
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        ) 

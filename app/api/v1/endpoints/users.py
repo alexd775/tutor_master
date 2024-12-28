@@ -1,5 +1,5 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.api import deps
 from app.models.user import User, UserPreference, UserRole
@@ -80,4 +80,49 @@ async def deactivate_user(
     db.commit()
     
     return {"message": "User deactivated successfully"}
+
+@router.get("/all", response_model=List[UserMeResponse])
+async def list_users(
+    current_user: Annotated[User, Depends(deps.get_current_active_superuser)],
+    db: Annotated[Session, Depends(deps.get_db)],
+    role: Optional[str] = Query(None, description="User role"),
+    is_active: Optional[bool] = Query(None, description="User active status"),
+    skip: int = 0,
+    limit: int = Query(default=20, le=100)
+) -> List[User]:
+    """
+    List all users with optional filters (admin only).
+    Includes session statistics for each user.
+    """
+    query = db.query(User)
+    
+    # Apply filters
+    if role in UserRole:
+        query = query.filter(User.role == role)
+    if is_active is not None:
+        query = query.filter(User.is_active == is_active)
+    
+    # Add session counts using subquery
+    from sqlalchemy import func
+    session_count = (
+        db.query(DBSession.user_id, func.count(DBSession.id).label('total_sessions'))
+        .group_by(DBSession.user_id)
+        .subquery()
+    )
+    
+    query = query\
+        .outerjoin(session_count, User.id == session_count.c.user_id)\
+        .add_columns(
+            func.coalesce(session_count.c.total_sessions, 0).label('total_sessions')
+        )\
+        .order_by(User.created_at.desc())\
+        .offset(skip)\
+        .limit(limit)
+    
+    users = []
+    for user, total_sessions in query.all():
+        setattr(user, 'total_sessions', total_sessions)
+        users.append(user)
+    
+    return users
 

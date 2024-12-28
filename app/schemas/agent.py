@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from app.models.agent import AgentType
@@ -30,3 +30,7 @@ class AgentResponse(AgentBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True) 
+
+class AgentListResponse(BaseModel):
+    items: List[AgentResponse]
+    total: int

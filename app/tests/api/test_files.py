@@ -66,3 +66,40 @@ def test_get_file(client, superuser_token_headers, db, test_file):
     
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/plain; charset=utf-8" 
+
+def test_list_files(client, superuser_token_headers, db, test_file):
+    """Test listing files."""
+    # First upload some files
+    files_to_create = 3
+    for i in range(files_to_create):
+        with open(test_file, "rb") as f:
+            client.post(
+                f"{settings.API_V1_STR}/files/upload",
+                headers=superuser_token_headers,
+                files={"file": (f"test_{i}.txt", f, "text/plain")},
+                data={"title": f"Test File {i}"}
+            )
+    
+    # List files
+    response = client.get(
+        f"{settings.API_V1_STR}/files",
+        headers=superuser_token_headers
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "items" in data
+    assert "total" in data
+    assert len(data["items"]) == files_to_create
+    assert data["total"] == files_to_create
+    
+    # Test pagination
+    response = client.get(
+        f"{settings.API_V1_STR}/files?skip=1&limit=1",
+        headers=superuser_token_headers
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["items"]) == 1
+    assert data["total"] == files_to_create  # Total should still be the same 

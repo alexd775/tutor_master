@@ -10,7 +10,7 @@ from app.services.analytics import update_session_analytics
 
 router = APIRouter()
 
-@router.post("/sessions/{session_id}/chat", response_model=ChatMessageResponse)
+@router.post("/sessions/{session_id}/chat", response_model=List[ChatMessageResponse])
 async def send_message(
     *,
     current_user: Annotated[User, Depends(deps.get_current_user)],
@@ -18,8 +18,12 @@ async def send_message(
     session_id: str,
     message: ChatMessageCreate,
     background_tasks: BackgroundTasks
-) -> ChatMessageResponse:
-    """Send a message to the AI agent."""
+) -> List[ChatMessageResponse]:
+    """
+    Send a message to the AI agent.
+    Returns a list of messages, the first being the user's message 
+    and the second being the AI's response.
+    """
     session = db.query(DBSession).filter(
         DBSession.id == session_id,
         DBSession.user_id == current_user.id

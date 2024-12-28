@@ -1,5 +1,6 @@
 import pytest
 import uuid
+from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,7 +10,32 @@ from app.main import app
 from app.api import deps
 from app.core.config import settings
 from app.models import User, Topic, Agent, UserRole
-from app.core.security import create_access_token
+from app.core.security import create_access_token, get_password_hash
+
+class MockOpenAIResponse:
+    def __init__(self, content: str):
+        self.choices = [
+            MagicMock(
+                message=MagicMock(
+                    content=content,
+                    function_call={}
+                )
+            )
+        ]
+        self.usage = MagicMock(total_tokens=10)
+
+@pytest.fixture
+def mock_openai(monkeypatch):
+    """Mock OpenAI API responses."""
+    mock_client = MagicMock()
+    mock_chat = AsyncMock()
+    mock_chat.completions.create = AsyncMock(
+        return_value=MockOpenAIResponse("Mocked AI response")
+    )
+    mock_client.return_value = MagicMock(chat=mock_chat)
+    monkeypatch.setattr("openai.OpenAI", mock_client)
+    return mock_chat.completions.create
+
 # Create test database
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -53,7 +79,7 @@ def superuser_token_headers(client):
     superuser = User(
         id=user_id,
         email="admin@example.com",
-        hashed_password="hashed_admin",
+        hashed_password=get_password_hash("admin_password"),
         is_active=True,
         role=UserRole.ADMIN,
         full_name="Admin User"
@@ -72,7 +98,7 @@ def normal_user_token_headers(client):
     user = User(
         id=user_id,
         email="user@example.com",
-        hashed_password="hashed_password",
+        hashed_password=get_password_hash("user_password"),
         full_name="John Doe",
         is_active=True
     )

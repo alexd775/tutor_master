@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api import deps
 from app.models import User, Agent
-from app.schemas.agent import AgentCreate, AgentUpdate, AgentResponse
+from app.schemas.agent import AgentCreate, AgentUpdate, AgentResponse, AgentListResponse
 import uuid
 
 router = APIRouter()
@@ -25,19 +25,23 @@ async def create_agent(
     db.refresh(db_agent)
     return db_agent
 
-@router.get("", response_model=List[AgentResponse])
+@router.get("", response_model=AgentListResponse)
 async def list_agents(
     current_user: Annotated[User, Depends(deps.get_current_active_superuser)],
     db: Annotated[Session, Depends(deps.get_db)],
     skip: int = 0,
     limit: int = 100
-) -> List[Agent]:
+) -> AgentListResponse:
     """List all AI agents (admin only)."""
     agents = db.query(Agent)\
         .offset(skip)\
         .limit(limit)\
         .all()
-    return agents
+    total = db.query(Agent).count()
+    return AgentListResponse(
+        items=[AgentResponse.model_validate(agent) for agent in agents],
+        total=total
+    )
 
 @router.get("/{agent_id}", response_model=AgentResponse)
 async def get_agent(

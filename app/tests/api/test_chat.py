@@ -1,32 +1,7 @@
 import pytest
 import uuid
-from unittest.mock import AsyncMock, MagicMock
 from app.core.config import settings
 from app.models import Session as DBSession, Agent, AgentType, Topic
-
-class MockOpenAIResponse:
-    def __init__(self, content: str):
-        self.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content=content,
-                    function_call={}
-                )
-            )
-        ]
-        self.usage = MagicMock(total_tokens=10)
-
-@pytest.fixture
-def mock_openai(monkeypatch):
-    """Mock OpenAI API responses."""
-    mock_client = MagicMock()
-    mock_chat = AsyncMock()
-    mock_chat.completions.create = AsyncMock(
-        return_value=MockOpenAIResponse("Mocked AI response")
-    )
-    mock_client.return_value = MagicMock(chat=mock_chat)
-    monkeypatch.setattr("openai.OpenAI", mock_client)
-    return mock_chat.completions.create
 
 @pytest.fixture
 def test_topic_with_agent(db):
@@ -77,8 +52,8 @@ def test_send_message(client, normal_user_token_headers, test_session, mock_open
     
     assert response.status_code == 200
     data = response.json()
-    assert data["role"] == "assistant"
-    assert data["content"] == "Mocked AI response"
+    assert data[1]["role"] == "assistant"
+    assert data[1]["content"] == "Mocked AI response"
     
     # Verify OpenAI was called correctly
     mock_openai.assert_called_once()

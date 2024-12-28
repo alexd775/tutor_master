@@ -88,6 +88,47 @@ async def list_user_sessions(
     
     return sessions
 
+@router.get("/all", response_model=List[SessionResponse])
+async def list_all_sessions(
+    current_user: Annotated[User, Depends(deps.get_current_active_superuser)],
+    db: Annotated[Session, Depends(deps.get_db)],
+    user_id: Optional[str] = None,
+    topic_id: Optional[str] = None,
+    skip: int = 0,
+    limit: int = Query(default=20, le=100)
+) -> List[DBSession]:
+    """
+    List all sessions with optional filters (admin only).
+    Sessions are ordered by creation date (newest first).
+    """
+    query = db.query(DBSession)
+    
+    # Apply filters
+    if user_id:
+        query = query.filter(DBSession.user_id == user_id)
+    if topic_id:
+        query = query.filter(DBSession.topic_id == topic_id)
+    
+    # Add topic titles and user names
+    query = query\
+        .join(Topic)\
+        .join(User, DBSession.user_id == User.id)\
+        .add_columns(
+            Topic.title.label('topic_title'),
+            User.full_name.label('user_full_name')
+        )\
+        .order_by(DBSession.created_at.desc())\
+        .offset(skip)\
+        .limit(limit)
+    
+    sessions = []
+    for session, topic_title, user_full_name in query.all():
+        setattr(session, 'topic_title', topic_title)
+        setattr(session, 'user_full_name', user_full_name)
+        sessions.append(session)
+    
+    return sessions
+
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(
     session_id: str,

@@ -24,5 +24,6 @@ class SessionResponse(SessionBase):
     completion_rate: float
     created_at: datetime
     topic_title: Optional[str] = None
+    user_full_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True) 
