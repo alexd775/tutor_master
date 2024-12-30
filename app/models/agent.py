@@ -28,6 +28,8 @@ class Agent(BaseModel):
     system_prompt = Column(Text, nullable=False)
     # Initial message template
     welcome_message = Column(Text, nullable=False)
+    # Reminder message template
+    reminder_message = Column(Text, nullable=True)
     
     # Relationships
     topics = relationship("Topic", back_populates="agent")

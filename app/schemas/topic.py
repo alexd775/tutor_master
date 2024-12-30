@@ -32,6 +32,7 @@ class TopicUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     content: Optional[dict] = None
+    agent_id: Optional[str] = Field(None, description="Associated AI agent ID")
     difficulty_level: Optional[int] = Field(None, ge=1, le=5)
 
 class TopicResponse(BaseModel):

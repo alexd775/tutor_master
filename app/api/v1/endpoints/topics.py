@@ -68,7 +68,7 @@ async def list_topics(
         session_stats = db.query(
             func.count(DBSession.id),
             func.avg(DBSession.completion_rate)
-        ).filter(DBSession.topic_id == topic.id).first()
+        ).filter(DBSession.topic_id == topic.id, DBSession.is_active == True).first()
         
         setattr(topic, 'subtopic_count', subtopic_count or 0)
         setattr(topic, 'total_sessions', session_stats[0] or 0)
@@ -94,7 +94,7 @@ async def get_topic(
     session_stats = db.query(
         func.count(DBSession.id),
         func.avg(DBSession.completion_rate)
-    ).filter(DBSession.topic_id == topic.id).first()
+    ).filter(DBSession.topic_id == topic.id, DBSession.is_active == True).first()
     
     setattr(topic, 'subtopic_count', subtopic_count or 0)
     setattr(topic, 'total_sessions', session_stats[0] or 0)
@@ -213,7 +213,8 @@ async def get_or_create_session(
     existing_session = db.query(DBSession)\
         .filter(
             DBSession.user_id == current_user.id,
-            DBSession.topic_id == topic_id
+            DBSession.topic_id == topic_id,
+            DBSession.is_active == True
         )\
         .order_by(DBSession.created_at.desc())\
         .first()

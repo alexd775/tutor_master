@@ -72,8 +72,10 @@ async def list_user_sessions(
     topic_id: Optional[str] = None
 ) -> List[DBSession]:
     """List current user's learning sessions."""
-    query = db.query(DBSession).filter(DBSession.user_id == current_user.id)
-    
+    query = db.query(DBSession)
+    query = query.filter(DBSession.user_id == current_user.id)
+    query = query.filter(DBSession.is_active == True)
+
     if topic_id:
         query = query.filter(DBSession.topic_id == topic_id)
     
@@ -138,7 +140,8 @@ async def get_session(
     """Get specific session by ID."""
     session = db.query(DBSession).filter(
         DBSession.id == session_id,
-        DBSession.user_id == current_user.id
+        DBSession.user_id == current_user.id,
+        DBSession.is_active == True
     ).first()
     
     if not session:
@@ -161,7 +164,8 @@ async def update_session(
     """Update session progress and feedback."""
     session = db.query(DBSession).filter(
         DBSession.id == session_id,
-        DBSession.user_id == current_user.id
+        DBSession.user_id == current_user.id,
+        DBSession.is_active == True
     ).first()
     
     if not session:
@@ -233,3 +237,63 @@ async def get_session_stats(
             for session in recent_sessions
         ]
     } 
+
+@router.post("/{session_id}/disable", response_model=SessionResponse)
+async def disable_and_create_session(
+    *,
+    current_user: Annotated[User, Depends(deps.get_current_user)],
+    db: Annotated[Session, Depends(deps.get_db)],
+    session_id: str
+) -> DBSession:
+    """
+    Disable current session and create a new one with the same settings.
+    Useful when user wants to restart a session.
+    """
+    # Get current session
+    current_session = db.query(DBSession).filter(
+        DBSession.id == session_id,
+        DBSession.user_id == current_user.id,
+        DBSession.is_active == True
+    ).first()
+    
+    if not current_session:
+        raise HTTPException(status_code=404, detail="Active session not found")
+    
+    try:
+        # Disable current session
+        current_session.is_active = False
+        db.add(current_session)
+        
+        # Create new session with same settings
+        new_session = DBSession(
+            id=str(uuid.uuid4()),
+            user_id=current_session.user_id,
+            topic_id=current_session.topic_id,
+            agent_id=current_session.agent_id,
+            completion_rate=0.0,  # Reset progress
+            duration=0,  # Reset duration
+            interaction_data={},  # Fresh interaction data
+            is_active=True
+        )
+        
+        db.add(new_session)
+        db.flush()  # Ensure new session is created before initializing AI
+        
+        # Initialize AI chat for new session
+        ai_service = AIService(db)
+        await ai_service.initialize_session(new_session)
+        
+        # Add topic title for response
+        topic = db.query(Topic).filter(Topic.id == new_session.topic_id).first()
+        setattr(new_session, 'topic_title', topic.title if topic else "")
+        
+        # Commit the transaction
+        db.commit()
+        return new_session
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to disable and create session: {str(e)}"
+        ) 

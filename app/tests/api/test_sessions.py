@@ -1,6 +1,6 @@
 import pytest
 import uuid
-from app.models import Session, Topic, Agent, AgentType, User
+from app.models import Session, Topic, Agent, AgentType, User, ChatMessage
 from app.core.config import settings
 
 @pytest.fixture
@@ -145,3 +145,47 @@ def test_list_all_sessions_normal_user(client, normal_user_token_headers):
     )
     
     assert response.status_code == 403 
+
+def test_disable_and_create_session(
+    client, 
+    normal_user_token_headers, 
+    test_topic_with_agent,
+    mock_openai,
+    db
+):
+    """Test disabling a session and creating a new one."""
+    # First create a session
+    response = client.post(
+        f"{settings.API_V1_STR}/sessions",
+        headers=normal_user_token_headers,
+        json={"topic_id": test_topic_with_agent.id}
+    )
+    assert response.status_code == 200
+    first_session = response.json()
+    
+    # Now disable it and create new one
+    response = client.post(
+        f"{settings.API_V1_STR}/sessions/{first_session['id']}/disable",
+        headers=normal_user_token_headers
+    )
+    
+    assert response.status_code == 200
+    new_session = response.json()
+    
+    # Verify the results
+    assert new_session["id"] != first_session["id"]
+    assert new_session["topic_id"] == first_session["topic_id"]
+    assert new_session["completion_rate"] == 0.0
+    assert new_session["is_active"] is True
+    
+    # Verify old session is disabled
+    old_session = db.query(DBSession)\
+        .filter(DBSession.id == first_session["id"])\
+        .first()
+    assert old_session.is_active is False
+    
+    # Verify new session has AI messages initialized
+    messages = db.query(ChatMessage)\
+        .filter(ChatMessage.session_id == new_session["id"])\
+        .all()
+    assert len(messages) >= 2  # Should have system and welcome messages 

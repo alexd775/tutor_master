@@ -23,6 +23,7 @@ class SessionResponse(SessionBase):
     user_id: str
     completion_rate: float
     created_at: datetime
+    is_active: Optional[bool] = None
     topic_title: Optional[str] = None
     user_full_name: Optional[str] = None
 

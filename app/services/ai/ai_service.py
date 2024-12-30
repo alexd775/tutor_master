@@ -94,7 +94,9 @@ class AIService:
         client = self.get_client(agent.ai_service)
         print(messages)
         response = client.chat.completions.create(
-            model='gpt-3.5-turbo-0125',#'chatgpt-4o-latest',##agent.config["model"],
+            model='gpt-3.5-turbo-0125',
+            # model='chatgpt-4o-latest',
+            # model=agent.config["model"],
             messages=messages,
             temperature=agent.config.get("temperature", 0.7),
             max_tokens=agent.config.get("max_tokens", 500)
@@ -139,6 +141,16 @@ class AIService:
             {"role": msg.role, "content": msg.content}
             for msg in reversed(recent_messages)
         ]
+
+        # Add reminder message if it exists
+        if len(messages) > 20 and session.agent.reminder_message:
+            user_message = f"""Things to Keep in mind for you: {session.agent.reminder_message}
+            ---
+            My message bellow:
+
+            {user_message}
+            """
+        
         messages.append({"role": "user", "content": user_message})
         
         # Get agent response

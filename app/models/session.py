@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, JSON, Integer, Float
+from sqlalchemy import Column, String, ForeignKey, JSON, Integer, Float, Boolean
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
@@ -10,6 +10,7 @@ class Session(BaseModel):
     id = Column(String(36), primary_key=True, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     topic_id = Column(String(36), ForeignKey("topics.id"), nullable=False)
+    is_active = Column(Boolean, default=True)
     
     duration = Column(Integer, default=0)
     completion_rate = Column(Float, default=0.0)

@@ -10,6 +10,7 @@ class AgentBase(BaseModel):
     config: Dict[str, Any] = Field(..., description="Agent-specific configuration")
     system_prompt: str = Field(..., description="System prompt template")
     welcome_message: str = Field(..., description="Initial message template")
+    reminder_message: Optional[str] = Field(None, description="Reminder message")
     is_active: bool = True
 
 class AgentCreate(AgentBase):
@@ -22,6 +23,7 @@ class AgentUpdate(BaseModel):
     config: Optional[Dict[str, Any]] = None
     system_prompt: Optional[str] = None
     welcome_message: Optional[str] = None
+    reminder_message: Optional[str] = None
     is_active: Optional[bool] = None
 
 class AgentResponse(AgentBase):
