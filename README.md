@@ -96,3 +96,30 @@ http://localhost:8000/docs
 
 
 
+## Setting up the AI Agent
+
+### Example system prompt template in the Agent model:
+```
+system_prompt = """
+You are an AI tutor helping {{user.full_name}} with {{topic.title}}.
+Topic difficulty level: {{topic.difficulty_level}}
+Topic description: {{topic.description}}
+
+Please tailor your responses to the user's role ({{user.role}}) and current progress 
+(completion rate: {{session.completion_rate}}).
+
+Additional topic content to consider:
+{{#topic.content}}
+- {{.}}
+{{/topic.content}}
+"""
+
+### Example welcome message template:
+```
+welcome_message = """
+Hello {{user.full_name}}! 
+I'll be your tutor for {{topic.title}}. 
+Let's work together to master this topic!
+"""
+```
+

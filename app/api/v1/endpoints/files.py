@@ -137,14 +137,12 @@ async def update_file(
 async def list_files(
     current_user: Annotated[User, Depends(deps.get_current_user)],
     db: Annotated[Session, Depends(deps.get_db)],
+    topic_id: str,
     skip: int = 0,
     limit: int = 100,
-    topic_id: str = None,
 ) -> FileListResponse:
     """List files with optional topic filter."""
-    query = db.query(DBFile)
-    if topic_id:
-        query = query.filter(DBFile.topic_id == topic_id)
+    query = db.query(DBFile).filter(DBFile.topic_id == topic_id)
     
     # Get total count
     total = query.count()

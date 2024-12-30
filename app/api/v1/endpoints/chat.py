@@ -33,7 +33,13 @@ async def send_message(
         raise HTTPException(status_code=404, detail="Session not found")
     
     ai_service = AIService(db)
-    response = await ai_service.process_message(session, message.content)
+    try:
+        db.begin_nested()  
+        response = await ai_service.process_message(session, message.content)
+        db.commit()  
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to process message: {str(e)}")
     
     # Update analytics in background
     background_tasks.add_task(update_session_analytics, db, session.id)

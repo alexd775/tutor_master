@@ -19,6 +19,8 @@ class Agent(BaseModel):
     type = Column(SQLEnum(AgentType), nullable=False)
     is_active = Column(Boolean, default=True)
     
+    # ai service
+    ai_service = Column(String, nullable=True, default="openai")
     # Agent-specific configuration
     config = Column(JSON, nullable=False)
     

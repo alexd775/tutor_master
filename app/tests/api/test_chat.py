@@ -52,6 +52,8 @@ def test_send_message(client, normal_user_token_headers, test_session, mock_open
     
     assert response.status_code == 200
     data = response.json()
+    assert data[0]["role"] == "user"
+    assert data[0]["content"] == "Hello, I need help with Python!"
     assert data[1]["role"] == "assistant"
     assert data[1]["content"] == "Mocked AI response"
     
