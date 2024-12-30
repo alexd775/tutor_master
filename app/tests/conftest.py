@@ -9,7 +9,7 @@ from app.db.base import Base
 from app.main import app
 from app.api import deps
 from app.core.config import settings
-from app.models import User, Topic, Agent, UserRole
+from app.models import User, Topic, Agent, UserRole, AgentType
 from app.core.security import create_access_token, get_password_hash
 
 class MockOpenAIResponse:
@@ -28,8 +28,8 @@ class MockOpenAIResponse:
 def mock_openai(monkeypatch):
     """Mock OpenAI API responses."""
     mock_client = MagicMock()
-    mock_chat = AsyncMock()
-    mock_chat.completions.create = AsyncMock(
+    mock_chat = MagicMock()
+    mock_chat.completions.create = MagicMock(
         return_value=MockOpenAIResponse("Mocked AI response")
     )
     mock_client.return_value = MagicMock(chat=mock_chat)
@@ -108,3 +108,32 @@ def normal_user_token_headers(client):
     
     auth_token = create_access_token(user_id)
     return {"Authorization": f"Bearer {auth_token}"} 
+
+
+@pytest.fixture
+def test_agent(db):
+    agent = Agent(
+        id=str(uuid.uuid4()),
+        name="Test Agent",
+        type=AgentType.CHATGPT,
+        config={"model": "gpt-4"},
+        system_prompt="Test prompt",
+        welcome_message="Test welcome",
+        is_active=True
+    )
+    db.add(agent)
+    db.commit()
+    return agent
+
+@pytest.fixture
+def test_topic_with_agent(db, test_agent):
+    topic = Topic(
+        id=str(uuid.uuid4()),
+        title="Test Topic",
+        content={},
+        agent_id=test_agent.id
+    )
+    db.add(topic)
+    db.commit()
+    db.refresh(topic)
+    return topic

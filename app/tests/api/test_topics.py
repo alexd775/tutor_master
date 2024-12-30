@@ -3,34 +3,6 @@ import uuid
 from app.core.config import settings
 from app.models import Topic, Agent, AgentType, Session as DBSession, ChatMessage, MessageRole
 
-@pytest.fixture
-def test_agent(db):
-    agent = Agent(
-        id=str(uuid.uuid4()),
-        name="Test Agent",
-        type=AgentType.CHATGPT,
-        config={"model": "gpt-4"},
-        system_prompt="Test prompt",
-        welcome_message="Test welcome",
-        is_active=True
-    )
-    db.add(agent)
-    db.commit()
-    return agent
-
-@pytest.fixture
-def test_topic_with_agent(db, test_agent):
-    topic = Topic(
-        id=str(uuid.uuid4()),
-        title="Test Topic",
-        content={},
-        agent_id=test_agent.id
-    )
-    db.add(topic)
-    db.commit()
-    db.refresh(topic)
-    return topic
-
 def test_create_topic(client, superuser_token_headers, db, test_agent):
     topic_data = {
         "title": "Test Topic",

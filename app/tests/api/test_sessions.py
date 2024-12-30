@@ -179,8 +179,8 @@ def test_disable_and_create_session(
     assert new_session["is_active"] is True
     
     # Verify old session is disabled
-    old_session = db.query(DBSession)\
-        .filter(DBSession.id == first_session["id"])\
+    old_session = db.query(Session)\
+        .filter(Session.id == first_session["id"])\
         .first()
     assert old_session.is_active is False
     

@@ -9,11 +9,11 @@ def test_file(tmp_path):
     file_path.write_text("Test content")
     return file_path
 
-def test_upload_file(client, superuser_token_headers, test_file):
+def test_upload_file(client, superuser_token_headers, test_file, test_topic_with_agent):
     """Test file upload."""
     with open(test_file, "rb") as f:
         response = client.post(
-            f"{settings.API_V1_STR}/files/upload",
+            f"{settings.API_V1_STR}/files/upload?topic_id={test_topic_with_agent.id}",
             headers=superuser_token_headers,
             files={"file": ("test.txt", f, "text/plain")},
             data={
@@ -28,7 +28,7 @@ def test_upload_file(client, superuser_token_headers, test_file):
     assert data["filename"] == "test.txt"
     assert data["content_type"] == "text/plain"
 
-def test_upload_invalid_file(client, superuser_token_headers, test_file):
+def test_upload_invalid_file(client, superuser_token_headers, test_file, test_topic_with_agent):
     """Test uploading file with invalid extension."""
     test_file = Path(test_file).with_suffix('.invalid')
     with open(test_file, "wb") as f:
@@ -36,7 +36,7 @@ def test_upload_invalid_file(client, superuser_token_headers, test_file):
     
     with open(test_file, "rb") as f:
         response = client.post(
-            f"{settings.API_V1_STR}/files/upload",
+            f"{settings.API_V1_STR}/files/upload?topic_id={test_topic_with_agent.id}",
             headers=superuser_token_headers,
             files={"file": ("test.invalid", f, "application/octet-stream")},
             data={"title": "Invalid File"}
@@ -45,12 +45,12 @@ def test_upload_invalid_file(client, superuser_token_headers, test_file):
     assert response.status_code == 400
     assert "File type not allowed" in response.json()["detail"]
 
-def test_get_file(client, superuser_token_headers, db, test_file):
+def test_get_file(client, superuser_token_headers, db, test_file, test_topic_with_agent):
     """Test file retrieval."""
     # First upload a file
     with open(test_file, "rb") as f:
         upload_response = client.post(
-            f"{settings.API_V1_STR}/files/upload",
+            f"{settings.API_V1_STR}/files/upload?topic_id={test_topic_with_agent.id}",
             headers=superuser_token_headers,
             files={"file": ("test.txt", f, "text/plain")},
             data={"title": "Test File"}
@@ -67,14 +67,14 @@ def test_get_file(client, superuser_token_headers, db, test_file):
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/plain; charset=utf-8" 
 
-def test_list_files(client, superuser_token_headers, db, test_file):
+def test_list_files(client, superuser_token_headers, db, test_file, test_topic_with_agent):
     """Test listing files."""
     # First upload some files
     files_to_create = 3
     for i in range(files_to_create):
         with open(test_file, "rb") as f:
             client.post(
-                f"{settings.API_V1_STR}/files/upload",
+                f"{settings.API_V1_STR}/files/upload?topic_id={test_topic_with_agent.id}",
                 headers=superuser_token_headers,
                 files={"file": (f"test_{i}.txt", f, "text/plain")},
                 data={"title": f"Test File {i}"}
@@ -82,7 +82,7 @@ def test_list_files(client, superuser_token_headers, db, test_file):
     
     # List files
     response = client.get(
-        f"{settings.API_V1_STR}/files",
+        f"{settings.API_V1_STR}/files?topic_id={test_topic_with_agent.id}",
         headers=superuser_token_headers
     )
     
@@ -95,7 +95,7 @@ def test_list_files(client, superuser_token_headers, db, test_file):
     
     # Test pagination
     response = client.get(
-        f"{settings.API_V1_STR}/files?skip=1&limit=1",
+        f"{settings.API_V1_STR}/files?topic_id={test_topic_with_agent.id}&skip=1&limit=1",
         headers=superuser_token_headers
     )
     
