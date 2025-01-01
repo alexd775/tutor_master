@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: Optional[str] = None
     
     # Invite System Settings
-    REQUIRE_INVITE: bool = True  # Set to False to disable invite system
+    REQUIRE_INVITE: bool = False  # Set to True to enable invite system
 
     @field_validator("DATABASE_URI", mode="before")
     @classmethod

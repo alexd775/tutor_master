@@ -1,10 +1,5 @@
-import pytest
 from app.core.config import settings
 from datetime import timedelta
-from fastapi import HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
-from jose import jwt
-from jose.exceptions import JWTError
 from app.core.security import create_access_token
 
 def test_login(client, db):

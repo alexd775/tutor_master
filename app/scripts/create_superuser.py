@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 # Add the parent directory to PYTHONPATH
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -12,9 +13,12 @@ import uuid
 def create_superuser(db: Session) -> None:
     """Create a superuser if it doesn't exist."""
     
+    email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    password = os.getenv("ADMIN_PASSWORD", "admin")
+    
     # Check if admin already exists
     admin = db.query(User).filter(
-        User.email == "admin@example.com"
+        User.email == email
     ).first()
     
     if admin:
@@ -24,8 +28,8 @@ def create_superuser(db: Session) -> None:
     # Create superuser
     admin_user = User(
         id=str(uuid.uuid4()),
-        email="admin@example.com",
-        hashed_password=get_password_hash("admin"),
+        email=email,
+        hashed_password=get_password_hash(password),
         full_name="System Administrator",
         role=UserRole.ADMIN,
         is_active=True,
@@ -36,8 +40,8 @@ def create_superuser(db: Session) -> None:
         db.add(admin_user)
         db.commit()
         print("✅ Superuser created successfully!")
-        print("Email: admin@example.com")
-        print("Password: admin")
+        print(f"Email: {email}")
+        print(f"Password: {password}")
         print("\n⚠️  Please change the password after first login!")
     except Exception as e:
         print(f"❌ Error creating superuser: {e}")

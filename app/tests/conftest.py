@@ -66,6 +66,7 @@ def client(db):
             pass
     
     app.dependency_overrides[deps.get_db] = override_get_db
+    settings.REQUIRE_INVITE = False
     client = TestClient(app=app)  # Initialize with keyword argument
     try:
         yield client

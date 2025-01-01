@@ -2,20 +2,23 @@ version: '3.8'
 
 services:
   app:
-    build: .
-    volumes:
-      - .:/app
+    image: ghcr.io/alexd775/tutor_master:master
     ports:
       - "8000:8000"
     environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - SECRET_KEY=${SECRET_KEY}
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres
       - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
       - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
+    # depends_on:
+    #   - db
+    #   - redis
 
   db:
     image: postgres:13
