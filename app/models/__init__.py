@@ -6,6 +6,7 @@ from app.models.analytics import UserAnalytics, TopicAnalytics, SessionAnalytics
 from app.models.file import File
 from app.models.agent import Agent, AgentType
 from app.models.chat import ChatMessage, MessageRole
+from app.models.invite import Invite
 
 # This allows other modules to import directly from app.models
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "AgentType",
     "ChatMessage",
     "MessageRole",
+    "Invite",
 ]

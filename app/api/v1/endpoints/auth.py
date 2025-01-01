@@ -17,6 +17,7 @@ from app.schemas.auth import Token, UserCreate, UserResponse, TokenRefresh, Toke
 import uuid
 from jose import jwt, JWTError
 from app.core.config import settings
+from app.models import Invite
 
 router = APIRouter()
 
@@ -91,14 +92,33 @@ async def refresh_token(
 async def register(
     *,
     db: Annotated[Session, Depends(deps.get_db)],
-    user_in: UserCreate,
+    user_in: UserCreate
 ) -> User:
-    """Register new user."""
-    user = db.query(User).filter(User.email == user_in.email).first()
-    if user:
+    """Register a new user."""
+    # Check if invite code is required
+    if settings.REQUIRE_INVITE:
+        if not user_in.invite_code:
+            raise HTTPException(
+                status_code=400,
+                detail="Invite code is required for registration"
+            )
+            
+        # Check if invite code is valid
+        invite = db.query(Invite)\
+            .filter(Invite.code == user_in.invite_code, Invite.is_used == False)\
+            .first()
+        
+        if not invite:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid or used invite code"
+            )
+    
+    # Check if email already exists
+    if db.query(User).filter(User.email == user_in.email).first():
         raise HTTPException(
             status_code=400,
-            detail="A user with this email already exists.",
+            detail="Email already registered"
         )
     
     user = User(
@@ -106,11 +126,19 @@ async def register(
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
-        role=UserRole.STUDENT,  # Default role for new users
+        role=UserRole.STUDENT
     )
+    
+    # Mark invite as used if invite system is enabled
+    if settings.REQUIRE_INVITE and invite:
+        invite.is_used = True
+        invite.used_by_id = user.id
+        db.add(invite)
+    
     db.add(user)
     db.commit()
     db.refresh(user)
+    
     return user
 
 @router.post("/verify")

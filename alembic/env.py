@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.db.base import Base
 
 # Import all models to ensure they're known to SQLAlchemy
-from app.models import user, topic, session, analytics  # noqa: F401
+from app.models import user, topic, session, analytics, invite  # noqa: F401
 
 config = context.config
 

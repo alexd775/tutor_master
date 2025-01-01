@@ -18,6 +18,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
+    invite_code: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: str

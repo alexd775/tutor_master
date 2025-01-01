@@ -7,6 +7,9 @@ from app.models import User, Session as DBSession, ChatMessage
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatHistoryResponse
 from app.services.ai import AIService
 from app.services.analytics import update_session_analytics
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 router = APIRouter()
 
@@ -39,6 +42,7 @@ async def send_message(
         db.commit()  
     except Exception as e:
         db.rollback()
+        logger.error(f"Failed to process message: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process message: {str(e)}")
     
     # Update analytics in background

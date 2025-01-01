@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: Optional[str] = None
     OPENAI_MODEL: Optional[str] = None
     
+    # Invite System Settings
+    REQUIRE_INVITE: bool = True  # Set to False to disable invite system
+
     @field_validator("DATABASE_URI", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], info) -> Any:

@@ -27,13 +27,8 @@ class AIService:
         
     def _prepare_template_data(self, session: Session) -> Dict[str, Any]:
         """Prepare data for template rendering."""
-        # Get user data
         user = session.user
-        # user = self.db.query(User).filter(User.id == session.user_id).first()
-        
-        # Get topic data
         topic = session.topic
-        # topic = self.db.query(Topic).filter(Topic.id == session.topic_id).first()
         
         # Prepare template data
         return {
@@ -157,7 +152,7 @@ class AIService:
         if len(messages) > 20 and session.agent.reminder_message:
             user_message = f"""Things to Keep in mind for you: {session.agent.reminder_message}
             ---
-            My message bellow:
+            My message below:
 
             {user_message}
             """

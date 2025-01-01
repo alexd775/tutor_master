@@ -37,4 +37,8 @@ class User(BaseModel):
     # Relationships with simpler references
     sessions = relationship("Session", back_populates="user", lazy="dynamic")
     analytics = relationship("UserAnalytics", back_populates="user", lazy="dynamic")
-    preferences = relationship("UserPreference", back_populates="user", uselist=False) 
+    preferences = relationship("UserPreference", back_populates="user", uselist=False)
+    
+    # Add these relationships
+    used_invite = relationship("Invite", foreign_keys="Invite.used_by_id", back_populates="used_by", uselist=False)
+    created_invites = relationship("Invite", foreign_keys="Invite.created_by_id", back_populates="created_by") 
