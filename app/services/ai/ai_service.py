@@ -18,7 +18,10 @@ class AIService:
     def get_client(self, ai_service: str):
         if ai_service in ["openai", "", None]:
             # default to openai
-            return openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+            return openai.OpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL or None
+            )
         else:
             raise ValueError(f"Invalid AI service: {ai_service}")
         
@@ -94,21 +97,29 @@ class AIService:
         client = self.get_client(agent.ai_service)
         print(messages)
         response = client.chat.completions.create(
-            model='gpt-3.5-turbo-0125',
+            model=settings.OPENAI_MODEL,
+            # model='gpt-3.5-turbo-0125',
             # model='chatgpt-4o-latest',
             # model=agent.config["model"],
             messages=messages,
-            temperature=agent.config.get("temperature", 0.7),
-            max_tokens=agent.config.get("max_tokens", 500)
+            # temperature=agent.config.get("temperature", 0.7),
+            max_tokens=agent.config.get("max_tokens", 4096)
         )
 
         message = response.choices[0].message
         content=message.content
+        # tool_calls = message.tool_calls
+        # for tool_call in tool_calls:
+        #     print(
+        #         "tool_call", tool_call.id, # The ID of the tool call.
+        #         "  function_call", tool_call.function.name, # The name of the function to call.
+        #         "  arguments", tool_call.function.arguments # The arguments to pass to the function.
+        #     )
         tokens=response.usage.total_tokens
-        if message.function_call and "completion_rate" in message.function_call:
-            completion_rate=message.function_call["completion_rate"]
-        else:
-            completion_rate=0.0
+        # if message.tool_calls and "completion_rate" in message.tool_calls:
+        #     completion_rate=message.tool_calls["completion_rate"]
+        # else:
+        completion_rate=0.0
         return content, tokens, completion_rate
     
     async def process_message(
