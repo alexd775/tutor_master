@@ -37,7 +37,7 @@ poetry run alembic upgrade head
 
 5. Create a superuser (admin)
 ```
-poetry run python -m app.scripts.create_superuser
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=admin poetry run python -m app.scripts.create_superuser
 # Or use the management script
 poetry run python -m app.scripts.manage createsuperuser
 ```

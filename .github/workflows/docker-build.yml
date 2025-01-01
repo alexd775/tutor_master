@@ -169,7 +169,7 @@ jobs:
           ssh $USER@$HOST "cd $DEPLOY_PATH && \
             docker-compose pull && \
             docker-compose up -d --remove-orphans && \
-            docker-compose exec -T app poetry run alembic upgrade head"
+            docker-compose exec -T app alembic upgrade head"
 
   deploy-production:
     needs: deploy-staging
@@ -224,4 +224,4 @@ jobs:
           ssh $USER@$HOST "cd $DEPLOY_PATH && \
             docker-compose pull && \
             docker-compose up -d --remove-orphans && \
-            docker-compose exec -T app poetry run alembic upgrade head" 
+            docker-compose exec -T app alembic upgrade head" 
