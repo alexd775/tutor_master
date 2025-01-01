@@ -143,7 +143,7 @@ jobs:
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_BASE_URL=https://api.deepseek.com
+          OPENAI_BASE_URL: https://api.deepseek.com
           OPENAI_MODEL: deepseek-chat
           REQUIRE_INVITE: "true"
         run: |
