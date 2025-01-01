@@ -113,3 +113,115 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max 
+
+  deploy-staging:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+      - name: Deploy to staging
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TAG: sha-${{ github.sha }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL=https://api.deepseek.com
+          OPENAI_MODEL: deepseek-chat
+          REQUIRE_INVITE: "true"
+        run: |
+          # Copy docker-compose and env files
+          scp docker-compose.prod.yml $USER@$HOST:$DEPLOY_PATH/docker-compose.yml
+          
+          # Create .env file
+          echo "REGISTRY=$REGISTRY" >> .env
+          echo "IMAGE_NAME=$IMAGE_NAME" >> .env
+          echo "TAG=$TAG" >> .env
+          echo "POSTGRES_USER=$POSTGRES_USER" >> .env
+          echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
+          echo "POSTGRES_DB=$POSTGRES_DB" >> .env
+          echo "SECRET_KEY=$SECRET_KEY" >> .env
+          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+          echo "OPENAI_BASE_URL=$OPENAI_BASE_URL" >> .env
+          echo "OPENAI_MODEL=$OPENAI_MODEL" >> .env
+          echo "REQUIRE_INVITE=$REQUIRE_INVITE" >> .env
+          
+          scp .env $USER@$HOST:$DEPLOY_PATH/.env
+          
+          # Deploy
+          ssh $USER@$HOST "cd $DEPLOY_PATH && \
+            docker compose pull && \
+            docker compose up -d --remove-orphans && \
+            docker compose exec -T app poetry run alembic upgrade head"
+
+  deploy-production:
+    needs: deploy-staging
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+      - name: Deploy to production
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TAG: ${{ github.ref_name }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          REQUIRE_INVITE: "true"
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+        run: |
+          # Same deployment steps as staging
+          scp docker-compose.prod.yml $USER@$HOST:$DEPLOY_PATH/docker-compose.yml
+          
+          echo "REGISTRY=$REGISTRY" >> .env
+          echo "IMAGE_NAME=$IMAGE_NAME" >> .env
+          echo "TAG=$TAG" >> .env
+          echo "POSTGRES_USER=$POSTGRES_USER" >> .env
+          echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
+          echo "POSTGRES_DB=$POSTGRES_DB" >> .env
+          echo "SECRET_KEY=$SECRET_KEY" >> .env
+          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+          echo "OPENAI_BASE_URL=$OPENAI_BASE_URL" >> .env
+          echo "OPENAI_MODEL=$OPENAI_MODEL" >> .env
+          echo "REQUIRE_INVITE=$REQUIRE_INVITE" >> .env
+          
+          scp .env $USER@$HOST:$DEPLOY_PATH/.env
+          
+          ssh $USER@$HOST "cd $DEPLOY_PATH && \
+            docker compose pull && \
+            docker compose up -d --remove-orphans && \
+            docker compose exec -T app poetry run alembic upgrade head" 
