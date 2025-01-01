@@ -168,6 +168,7 @@ jobs:
           # Deploy
           ssh $USER@$HOST "cd $DEPLOY_PATH && \
             docker-compose pull && \
+            docker-compose down --remove-orphans && \
             docker-compose up -d --remove-orphans && \
             docker-compose exec -T app alembic upgrade head"
 
